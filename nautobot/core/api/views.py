@@ -31,7 +31,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet as ModelViewSet_, ReadOnlyModelViewSet as ReadOnlyModelViewSet_
 
 from nautobot.core.api import BulkOperationSerializer
-from nautobot.core.celery import app as celery_app
+#from nautobot.core.celery import app as celery_app
 from nautobot.core.exceptions import FilterSetFieldNotFound
 from nautobot.core.utils.data import is_uuid
 from nautobot.core.utils.filtering import get_all_lookup_expr_for_field, get_filterset_parameter_form_field
@@ -416,7 +416,7 @@ class StatusView(NautobotAPIVersionMixin, APIView):
                     "nautobot-version": {"type": "string"},
                     "plugins": {"type": "object"},
                     "python-version": {"type": "string"},
-                    "celery-workers-running": {"type": "integer"},
+                    #"workers-running": {"type": "integer"},
                 },
             }
         }
@@ -442,8 +442,8 @@ class StatusView(NautobotAPIVersionMixin, APIView):
         plugins = dict(sorted(plugins.items()))
 
         # Gather Celery workers
-        workers = celery_app.control.inspect().active()  # list or None
-        worker_count = len(workers) if workers is not None else 0
+        #workers = celery_app.control.inspect().active()  # list or None
+        #worker_count = len(workers) if workers is not None else 0
 
         return Response(
             {
@@ -452,7 +452,7 @@ class StatusView(NautobotAPIVersionMixin, APIView):
                 "nautobot-version": settings.VERSION,
                 "plugins": plugins,
                 "python-version": platform.python_version(),
-                "celery-workers-running": worker_count,
+                #"workers-running": worker_count,
             }
         )
 

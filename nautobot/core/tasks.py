@@ -4,15 +4,15 @@ from django.conf import settings
 from django.core.cache import cache
 from packaging import version
 import requests
+import dramatiq
 
-from nautobot.core import celery
 from nautobot.core.utils import config
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
 
-@celery.nautobot_task
+@dramatiq.actor
 def get_releases(pre_releases=False):
     url = config.get_settings_or_config("RELEASE_CHECK_URL")
     headers = {
@@ -48,5 +48,5 @@ def get_releases(pre_releases=False):
     # Cache the most recent release
     cache.set("latest_release", max(releases), config.get_settings_or_config("RELEASE_CHECK_TIMEOUT"))
 
-    # Since this is a Celery task, we can't return Version objects as they are not JSON serializable.
+    # Since this is a background task, we can't return Version objects as they are not JSON serializable.
     return [(str(version), url) for version, url in releases]

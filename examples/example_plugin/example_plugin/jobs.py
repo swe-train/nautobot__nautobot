@@ -9,6 +9,7 @@ from nautobot.apps.jobs import (
     FileVar,
     IntegerVar,
     Job,
+    _Job,
     JobButtonReceiver,
     JobHookReceiver,
     JSONVar,
@@ -186,14 +187,6 @@ class ExampleComplexJobButtonReceiver(JobButtonReceiver):
             self.logger.error("Unable to run Job Button for type %s.", type(obj).__name__, extra={"object": obj})
 
 
-jobs = (
-    ExampleDryRunJob,
-    ExampleJob,
-    ExampleHiddenJob,
-    ExampleLoggingJob,
-    ExampleFileInputOutputJob,
-    ExampleJobHookReceiver,
-    ExampleSimpleJobButtonReceiver,
-    ExampleComplexJobButtonReceiver,
-)
-register_jobs(*jobs)
+class MyTestJob(_Job):
+    def run(self):
+        return "Hello world!"

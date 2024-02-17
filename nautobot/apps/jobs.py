@@ -1,7 +1,5 @@
 """Nautobot Jobs API."""
 
-from nautobot.core.celery import register_jobs
-from nautobot.core.celery.encoders import NautobotKombuJSONEncoder
 from nautobot.core.jobs import GitRepositoryDryRun, GitRepositorySync
 from nautobot.extras.jobs import (
     BaseJob,
@@ -19,6 +17,7 @@ from nautobot.extras.jobs import (
     is_job,
     is_variable,
     Job,
+    _Job,
     JobButtonReceiver,
     JobHookReceiver,
     JSONVar,
@@ -49,14 +48,13 @@ __all__ = (
     "is_job",
     "is_variable",
     "Job",
+    "_Job",
     "JobButtonReceiver",
     "JobHookReceiver",
     "JSONVar",
     "MultiChoiceVar",
     "MultiObjectVar",
-    "NautobotKombuJSONEncoder",
     "ObjectVar",
-    "register_jobs",
     "RunJobTaskFailed",
     "ScriptVariable",
     "StringVar",

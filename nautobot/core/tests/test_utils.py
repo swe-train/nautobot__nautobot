@@ -100,7 +100,7 @@ class DeepMergeTest(TestCase):
                 "grape": 5,
             },
             "vegetables": {
-                "celery": 1,
+                "broccoli": 1,
                 "carrots": 2,
                 "corn": 3,
             },
@@ -125,7 +125,7 @@ class DeepMergeTest(TestCase):
                 "grape": 5,
             },
             "vegetables": {
-                "celery": 1,
+                "broccoli": 1,
                 "carrots": 2,
                 "corn": 3,
             },

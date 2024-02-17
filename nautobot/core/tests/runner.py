@@ -5,8 +5,6 @@ from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors, NullTimeKeeper
 import yaml
 
-from nautobot.core.celery import app, setup_nautobot_job_logging
-
 
 class NautobotTestRunner(DiscoverRunner):
     """
@@ -52,9 +50,6 @@ class NautobotTestRunner(DiscoverRunner):
         super().setup_test_environment(**kwargs)
         # Remove 'testserver' that Django "helpfully" adds automatically to ALLOWED_HOSTS, masking issues like #3065
         settings.ALLOWED_HOSTS.remove("testserver")
-        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
-            # Make sure logs get captured when running Celery tasks, even though we don't have/need a Celery worker
-            setup_nautobot_job_logging(None, None, app.conf)
 
     def setup_databases(self, **kwargs):
         # Adapted from Django 3.2 django.test.utils.setup_databases

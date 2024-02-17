@@ -5,7 +5,5 @@ services:
     build:
       target: final-dev
     image: "local/nautobot-final-dev:local-py${PYTHON_VER}"
-  celery_worker:
-    image: "local/nautobot-final-dev:local-py${PYTHON_VER}"
-  celery_beat:
+  worker:
     image: "local/nautobot-final-dev:local-py${PYTHON_VER}"

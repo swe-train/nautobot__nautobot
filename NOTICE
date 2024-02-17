@@ -6,3 +6,5 @@ Nautobot is based in part upon NetBox. NetBox is copyrighted and licensed under 
 Some parts of Nautobot are based upon Logan and licensed under Apache License 2.0 by David Cramer.
 
 Some parts of Nautobot are based upon `django-natural-keys`, licensed under MIT License by S. Andrew Sheppard.
+
+Some parts of Nautobot are based upon `django_dramatiq`, licensed under Apache License 2.0 by Bogdan Paul Popa.

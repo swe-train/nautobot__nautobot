@@ -845,10 +845,9 @@ class CoreConfig(NautobotConfig):
 
         super().ready()
 
-        # Register jobs last after everything else has been done.
-        from nautobot.core.celery import app, import_jobs_as_celery_tasks
-
-        import_jobs_as_celery_tasks(app, database_ready=False)
+        # Initalize dramatiq, which sets the global broker state
+        from nautobot.core.dramatiq import setup as dramatiq_setup
+        dramatiq_setup()
 
 
 class NautobotConstanceConfig(ConstanceConfig):

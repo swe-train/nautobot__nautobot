@@ -18,8 +18,7 @@ from django.db.models.signals import m2m_changed, post_delete, post_save, pre_de
 from django.dispatch import receiver
 from django.utils import timezone
 from django_prometheus.models import model_deletes, model_inserts, model_updates
-
-from nautobot.core.celery import app, import_jobs_as_celery_tasks
+from nautobot.core.dramatiq.discovery import get_jobs_classes
 from nautobot.core.utils.config import get_settings_or_config
 from nautobot.core.utils.logging import sanitize
 from nautobot.extras.choices import JobResultStatusChoices, ObjectChangeActionChoices
@@ -413,15 +412,9 @@ def refresh_job_models(sender, *, apps, **kwargs):
         logger.info("Skipping refresh_job_models() as it appears Job model has not yet been migrated to latest.")
         return
 
-    import_jobs_as_celery_tasks(app)
-
     job_models = []
-    for task in app.tasks.values():
-        # Skip Celery tasks that aren't Jobs
-        if not isinstance(task, JobClass):
-            continue
-
-        job_model, _ = refresh_job_model_from_job_class(Job, task.__class__)
+    for job_class in get_jobs_classes().values():
+        job_model, _ = refresh_job_model_from_job_class(Job, job_class)
         if job_model is not None:
             job_models.append(job_model)
 

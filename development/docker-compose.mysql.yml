@@ -4,10 +4,7 @@ services:
   nautobot:
     environment:
       - "NAUTOBOT_DB_ENGINE=django_prometheus.db.backends.mysql"
-  celery_worker:
-    environment:
-      - "NAUTOBOT_DB_ENGINE=django_prometheus.db.backends.mysql"
-  celery_beat:
+  worker:
     environment:
       - "NAUTOBOT_DB_ENGINE=django_prometheus.db.backends.mysql"
   db:

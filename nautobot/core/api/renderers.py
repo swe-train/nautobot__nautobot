@@ -6,7 +6,7 @@ import logging
 from django.conf import settings
 from rest_framework.renderers import BaseRenderer, BrowsableAPIRenderer, JSONRenderer
 
-from nautobot.core.celery import NautobotKombuJSONEncoder
+from nautobot.core.dramatiq.json import NautobotJSONEncoder
 from nautobot.core.constants import COMPOSITE_KEY_SEPARATOR
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class NautobotJSONRenderer(JSONRenderer):
     Override the encoder_class of the default JSONRenderer to handle the rendering of TagsManager in Nautobot API.
     """
 
-    encoder_class = NautobotKombuJSONEncoder
+    encoder_class = NautobotJSONEncoder
 
 
 class NautobotCSVRenderer(BaseRenderer):

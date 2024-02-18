@@ -15,7 +15,7 @@ class Command(BaseCommand):
     def run_from_argv(self, argv):
         sys.argv.remove("worker")
 
-        # Enforce that the core broker loader is already sent as the first argument
-        sys.argv.insert(1, "nautobot.core.dramatiq")
+        # Enforce that the core worker entrypoint is used as the broker arg
+        sys.argv.insert(1, "nautobot.core.dramatiq.worker")
 
         sys.exit(dramatiq_main())

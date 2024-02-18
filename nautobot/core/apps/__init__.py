@@ -841,13 +841,13 @@ class CoreConfig(NautobotConfig):
             logger.warning("Maintenance mode enabled: disabling update of most recent login time")
             user_logged_in.disconnect(update_last_login, dispatch_uid="update_last_login")
 
-        post_migrate.connect(post_migrate_send_nautobot_database_ready, sender=self)
-
-        super().ready()
-
         # Initalize dramatiq, which sets the global broker state
         from nautobot.core.dramatiq import setup as dramatiq_setup
         dramatiq_setup()
+
+        post_migrate.connect(post_migrate_send_nautobot_database_ready, sender=self)
+
+        super().ready()
 
 
 class NautobotConstanceConfig(ConstanceConfig):

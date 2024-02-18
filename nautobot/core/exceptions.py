@@ -9,21 +9,21 @@ class AbortTransaction(Exception):
     """
 
 
-class CeleryWorkerNotRunningException(APIException):
+class WorkerNotRunningException(APIException):
     """
-    Indicates the temporary inability to enqueue a new Celery task (e.g. custom script execution) because
-    no Celery worker processes are currently running.
+    Indicates the temporary inability to enqueue a new background task (e.g. job execution) because
+    no worker processes are currently running.
     """
 
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     default_detail = (
-        f"Unable to process request: No celery workers running on queue {settings.CELERY_TASK_DEFAULT_QUEUE}."
+        f"Unable to process request: No workers running on queue {settings.WORKER_DEFAULT_QUEUE}."
     )
-    default_code = "celery_worker_not_running"
+    default_code = "worker_not_running"
 
     def __init__(self, queue=None):
         if queue:
-            detail = f"Unable to process request: No celery workers running on queue {queue}."
+            detail = f"Unable to process request: No workers running on queue {queue}."
         else:
             detail = self.default_detail
         super().__init__(detail=detail)

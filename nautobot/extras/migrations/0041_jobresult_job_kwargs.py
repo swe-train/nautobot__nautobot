@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-import nautobot.core.celery
+import nautobot.core.dramatiq
 
 
 class Migration(migrations.Migration):
@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="jobresult",
             name="job_kwargs",
-            field=models.JSONField(blank=True, null=True, encoder=nautobot.core.celery.NautobotKombuJSONEncoder),
+            field=models.JSONField(blank=True, null=True, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder),
         ),
     ]

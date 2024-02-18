@@ -5,7 +5,6 @@ from datetime import timedelta
 import logging
 
 from celery import schedules
-from celery.utils.log import get_logger, LoggingProxy
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -17,12 +16,7 @@ from django.utils.functional import cached_property
 from django_celery_beat.clockedschedule import clocked
 from prometheus_client import Histogram
 
-from nautobot.core.celery import (
-    app,
-    NautobotKombuJSONEncoder,
-    setup_nautobot_job_logging,
-)
-from nautobot.core.celery.control import refresh_git_repository
+from nautobot.core.dramatiq.json import NautobotJSONEncoder
 from nautobot.core.models import BaseManager, BaseModel
 from nautobot.core.models.fields import JSONArrayField
 from nautobot.core.models.generics import OrganizationalModel, PrimaryModel
@@ -281,10 +275,12 @@ class Job(PrimaryModel):
         """Get the registered Celery task, refreshing it if necessary."""
         if self.git_repository is not None:
             # If this Job comes from a Git repository, make sure we have the correct version of said code.
-            refresh_git_repository(
-                state=None, repository_pk=self.git_repository.pk, head=self.git_repository.current_head
-            )
-        return app.tasks[f"{self.module_name}.{self.job_class_name}"]
+            #refresh_git_repository(
+            #    state=None, repository_pk=self.git_repository.pk, head=self.git_repository.current_head
+            #)
+            # TODO(john): refactor git repo refresh for dramatiq
+            pass
+        return self
 
     def clean(self):
         """For any non-overridden fields, make sure they get reset to the actual underlying class value if known."""
@@ -474,7 +470,7 @@ class JobResult(BaseModel, CustomFieldModel):
         db_index=True,
     )
     result = models.JSONField(
-        encoder=NautobotKombuJSONEncoder,
+        encoder=NautobotJSONEncoder,
         null=True,
         blank=True,
         editable=False,
@@ -486,9 +482,9 @@ class JobResult(BaseModel, CustomFieldModel):
         default=None,
         null=True,  # TODO: should this be default="", blank=True instead?
     )
-    task_args = models.JSONField(blank=True, default=list, encoder=NautobotKombuJSONEncoder)
-    task_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotKombuJSONEncoder)
-    celery_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotKombuJSONEncoder)
+    task_args = models.JSONField(blank=True, default=list, encoder=NautobotJSONEncoder)
+    task_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
+    celery_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
     traceback = models.TextField(blank=True, null=True)  # noqa: DJ001  # django-nullable-model-string-field -- TODO: can we remove null=True?
     meta = models.JSONField(null=True, default=None, editable=False)
     scheduled_job = models.ForeignKey(to="extras.ScheduledJob", on_delete=models.SET_NULL, null=True, blank=True)
@@ -654,34 +650,37 @@ class JobResult(BaseModel, CustomFieldModel):
             job_celery_kwargs.update(celery_kwargs)
 
         if synchronous:
+            # TODO(john): refactor this for dramatiq
+
             # synchronous tasks are run before the JobResult is saved, so any fields required by
             # the job must be added before calling `apply()`
             job_result.celery_kwargs = job_celery_kwargs
             job_result.save()
 
             # setup synchronous task logging
-            setup_nautobot_job_logging(None, None, app.conf)
+            #setup_nautobot_job_logging(None, None, app.conf)
+            # TODO(john): check on logging needs
 
             # redirect stdout/stderr to logger and run task
-            redirect_logger = get_logger("celery.redirected")
-            proxy = LoggingProxy(redirect_logger, app.conf.worker_redirect_stdouts_level)
-            with contextlib.redirect_stdout(proxy), contextlib.redirect_stderr(proxy):
-                eager_result = job_model.job_task.apply(
-                    args=job_args, kwargs=job_kwargs, task_id=str(job_result.id), **job_celery_kwargs
-                )
+            #redirect_logger = get_logger("celery.redirected")
+            #proxy = LoggingProxy(redirect_logger, app.conf.worker_redirect_stdouts_level)
+            #with contextlib.redirect_stdout(proxy), contextlib.redirect_stderr(proxy):
+            #    eager_result = job_model.job_task.apply(
+            #        args=job_args, kwargs=job_kwargs, task_id=str(job_result.id), **job_celery_kwargs
+            #    )
 
             # copy fields from eager result to job result
             job_result.refresh_from_db()
             # Emulate prepare_exception() behavior
-            if isinstance(eager_result.result, Exception):
-                job_result.result = {
-                    "exc_type": type(eager_result.result).__name__,
-                    "exc_message": sanitize(str(eager_result.result)),
-                }
-            else:
-                job_result.result = sanitize(eager_result.result)
-            job_result.status = eager_result.status
-            job_result.traceback = sanitize(eager_result.traceback)
+            #if isinstance(eager_result.result, Exception):
+            #    job_result.result = {
+            #        "exc_type": type(eager_result.result).__name__,
+            #        "exc_message": sanitize(str(eager_result.result)),
+            #    }
+            #else:
+            #    job_result.result = sanitize(eager_result.result)
+            #job_result.status = eager_result.status
+            #job_result.traceback = sanitize(eager_result.traceback)
             job_result.date_done = timezone.now()
             job_result.save()
         else:
@@ -861,9 +860,9 @@ class ScheduledJob(BaseModel):
         to="extras.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="scheduled_jobs"
     )
     interval = models.CharField(choices=JobExecutionType, max_length=255)
-    args = models.JSONField(blank=True, default=list, encoder=NautobotKombuJSONEncoder)
-    kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotKombuJSONEncoder)
-    celery_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotKombuJSONEncoder)
+    args = models.JSONField(blank=True, default=list, encoder=NautobotJSONEncoder)
+    kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
+    celery_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
     queue = models.CharField(
         max_length=200,
         blank=True,

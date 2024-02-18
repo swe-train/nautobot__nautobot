@@ -178,7 +178,3 @@ class ExportObjectList(Job):
             serializer = serializer_class(queryset, many=True, context={"request": None}, force_csv=True)
             csv_data = renderer.render(serializer.data)
             self.create_file(filename + ".csv", csv_data)
-
-
-jobs = [ExportObjectList, GitRepositorySync, GitRepositoryDryRun]
-register_jobs(*jobs)

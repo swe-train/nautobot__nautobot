@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-import nautobot.core.celery.encoders
+import nautobot.core.dramatiq
 
 
 class Migration(migrations.Migration):
@@ -51,14 +51,14 @@ class Migration(migrations.Migration):
             model_name="jobresult",
             name="celery_kwargs",
             field=models.JSONField(
-                blank=True, default=dict, encoder=nautobot.core.celery.encoders.NautobotKombuJSONEncoder
+                blank=True, default=dict, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder
             ),
         ),
         migrations.AddField(
             model_name="scheduledjob",
             name="celery_kwargs",
             field=models.JSONField(
-                blank=True, default=dict, encoder=nautobot.core.celery.encoders.NautobotKombuJSONEncoder
+                blank=True, default=dict, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder
             ),
         ),
         migrations.AlterField(
@@ -75,7 +75,7 @@ class Migration(migrations.Migration):
             model_name="jobresult",
             name="task_args",
             field=models.JSONField(
-                blank=True, default=list, encoder=nautobot.core.celery.encoders.NautobotKombuJSONEncoder
+                blank=True, default=list, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder
             ),
         ),
     ]

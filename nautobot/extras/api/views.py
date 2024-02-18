@@ -28,7 +28,7 @@ from nautobot.core.api.views import (
     NautobotAPIVersionMixin,
     ReadOnlyModelViewSet,
 )
-from nautobot.core.exceptions import CeleryWorkerNotRunningException
+from nautobot.core.exceptions import WorkerNotRunningException
 from nautobot.core.graphql import execute_saved_query
 from nautobot.core.models.querysets import count_related
 from nautobot.extras import filters
@@ -387,7 +387,7 @@ class GitRepositoryViewSet(NautobotModelViewSet):
             raise PermissionDenied("This user does not have permission to make changes to Git repositories.")
 
         if not get_worker_count():
-            raise CeleryWorkerNotRunningException()
+            raise WorkerNotRunningException()
 
         repository = get_object_or_404(GitRepository, id=pk)
         repository.sync(user=request.user)
@@ -665,7 +665,7 @@ class JobViewSetBase(
             return Response({"errors": e.message_dict if hasattr(e, "error_dict") else e.messages}, status=400)
 
         if not get_worker_count(queue=task_queue):
-            raise CeleryWorkerNotRunningException(queue=task_queue)
+            raise WorkerNotRunningException(queue=task_queue)
 
         # Default to a null JobResult.
         job_result = None

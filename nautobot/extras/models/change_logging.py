@@ -5,7 +5,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.urls import NoReverseMatch, reverse
 
-from nautobot.core.celery import NautobotKombuJSONEncoder
+from nautobot.core.dramatiq.json import NautobotJSONEncoder
 from nautobot.core.models import BaseModel
 from nautobot.core.models.utils import serialize_object, serialize_object_v2
 from nautobot.core.utils.data import shallow_compare_dict
@@ -105,7 +105,7 @@ class ObjectChange(BaseModel):
     related_object = GenericForeignKey(ct_field="related_object_type", fk_field="related_object_id")
     object_repr = models.CharField(max_length=CHANGELOG_MAX_OBJECT_REPR, editable=False)
     object_data = models.JSONField(encoder=DjangoJSONEncoder, editable=False)
-    object_data_v2 = models.JSONField(encoder=NautobotKombuJSONEncoder, editable=False, null=True, blank=True)
+    object_data_v2 = models.JSONField(encoder=NautobotJSONEncoder, editable=False, null=True, blank=True)  # TODO(john): is this really the correct encoder to use?
 
     documentation_static_path = "docs/user-guide/platform-functionality/change-logging.html"
     natural_key_field_names = ["pk"]

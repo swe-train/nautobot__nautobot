@@ -12,7 +12,7 @@ from nautobot.core.dramatiq import setup as dramatiq_setup
 #
 nautobot.setup()
 django.setup()
-dramatiq_setup()
+#dramatiq_setup()
 
 
 # Only after setup has occured, we can discover and import all actors (jobs)

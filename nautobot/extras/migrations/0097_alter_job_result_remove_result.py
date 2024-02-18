@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-import nautobot.core.celery
+import nautobot.core.dramatiq
 
 
 class Migration(migrations.Migration):
@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
             model_name="jobresult",
             name="data",
             field=models.JSONField(
-                blank=True, editable=False, encoder=nautobot.core.celery.NautobotKombuJSONEncoder, null=True
+                blank=True, editable=False, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder, null=True
             ),
         ),
     ]

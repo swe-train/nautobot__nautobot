@@ -409,6 +409,7 @@ INSTALLED_APPS = [
     "nautobot.core.apps.NautobotConstanceConfig",  # overridden form of "constance" AppConfig
     "nautobot.core",
     "django.contrib.admin",  # Must be after `nautobot.core` for template overrides
+    "django_celery_beat",  # Must be after `nautobot.core` for template overrides
     "rest_framework",  # Must be after `nautobot.core` for template overrides
     "db_file_storage",
     "nautobot.circuits",
@@ -909,6 +910,7 @@ DRAMATIQ_BROKER = {
         "dramatiq.middleware.TimeLimit",
         "dramatiq.middleware.Callbacks",
         "dramatiq.middleware.Retries",
+        "nautobot.core.dramatiq.middleware.NautobotJobsMiddleware",
     ]
 }
 
@@ -921,3 +923,5 @@ DRAMATIQ_RESULT_BACKEND = {
         "result_ttl": 1000 * 60 * 10
     }
 }
+
+WORKER_DEFAULT_QUEUE = "default"

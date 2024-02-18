@@ -6,7 +6,7 @@ from django.db import transaction
 from jinja2.exceptions import TemplateError
 import requests
 
-from nautobot.core.celery import nautobot_task
+from nautobot.core.dramatiq import nautobot_task
 from nautobot.extras.choices import CustomFieldTypeChoices, ObjectChangeActionChoices
 from nautobot.extras.utils import generate_signature
 

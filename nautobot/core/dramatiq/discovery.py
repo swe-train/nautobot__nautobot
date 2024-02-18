@@ -1,7 +1,6 @@
 import importlib
 from django.apps import apps
 from nautobot.apps import NautobotAppConfig
-from nautobot.extras.jobs import _Job
 
 
 def import_jobs_from_apps():
@@ -22,12 +21,13 @@ def import_jobs_from_apps():
 
 
 def get_jobs_classes():
+    from nautobot.extras.jobs import Job  # circular import
     jobs_module_map = import_jobs_from_apps()
     jobs_map = {}
 
     for app_config_name, module in jobs_module_map.items():
         for entity in dir(module):
-            if isinstance(entity, type) and issubclass(entity, _Job) and entity is not _Job:
+            if isinstance(entity, type) and issubclass(entity, Job) and entity is not Job:
                 # We have a subclass of Job
                 jobs_map[app_config_name] = entity
 

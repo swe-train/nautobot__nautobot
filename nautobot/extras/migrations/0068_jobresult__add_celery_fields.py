@@ -3,7 +3,7 @@
 from django.db import migrations, models
 import django.db.models.deletion
 
-import nautobot.core.celery
+import nautobot.core.dramatiq
 import nautobot.extras.utils
 
 
@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
             model_name="jobresult",
             name="task_kwargs",
             field=models.JSONField(
-                blank=True, default=dict, encoder=nautobot.core.celery.encoders.NautobotKombuJSONEncoder
+                blank=True, default=dict, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder
             ),
         ),
         migrations.AddField(

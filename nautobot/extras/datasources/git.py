@@ -17,7 +17,6 @@ from django.db import transaction
 from git import InvalidGitRepositoryError, Repo
 import yaml
 
-from nautobot.core.celery import app as celery_app
 from nautobot.core.utils.git import GitRepo
 from nautobot.dcim.models import Device, DeviceType, Location, Platform
 from nautobot.extras.choices import (
@@ -726,7 +725,9 @@ def refresh_code_from_repository(repository_slug, consumer=None, skip_reimport=F
     if settings.GIT_ROOT not in sys.path:
         sys.path.append(settings.GIT_ROOT)
 
-    app = consumer.app if consumer is not None else celery_app
+    # TODO(john): no idea about any of this but need to investigate with dramatiq
+    # also lookup into the consumer arg
+    #app = consumer.app if consumer is not None else celery_app
     # TODO: This is ugly, but when app.use_fast_trace_task is set (true by default), Celery calls
     # celery.app.trace.fast_trace_task(...) which assumes that all tasks are cached and have a valid `__trace__()`
     # function defined. In theory consumer.update_strategies() (below) should ensure this, but it doesn't
@@ -734,7 +735,7 @@ def refresh_code_from_repository(repository_slug, consumer=None, skip_reimport=F
     # as we can and do still encounter errors where `task.__trace__` is unexpectedly None.
     # For now, simply disabling use_fast_trace_task forces the task trace function to be rebuilt each time,
     # which avoids the issue at the cost of very slight overhead.
-    app.use_fast_trace_task = False
+    #app.use_fast_trace_task = False
 
     # Unload any previous version of this module and its submodules if present
     for module_name in list(sys.modules):

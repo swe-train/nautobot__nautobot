@@ -6,7 +6,6 @@
 #
 
 import dramatiq
-from django.apps import apps
 from django.conf import settings
 from django.utils.module_loading import import_string
 
@@ -60,6 +59,8 @@ def setup():
         load_middleware(path)
         for path in broker_settings.get("MIDDLEWARE", [])
     ]
+    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+    print(middleware)
 
     if result_backend is not None:
         middleware.append(results_middleware)
@@ -68,3 +69,8 @@ def setup():
     dramatiq.set_broker(broker)
 
     return broker
+
+
+# nautobot_task is used in a few places for non-job based background tasks
+# we offer it in this way for backwards compatability
+nautobot_task = dramatiq.actor

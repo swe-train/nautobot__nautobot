@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("circuits", "0011_remove_site_foreign_key_from_circuit_termination_class"),
         ("dcim", "0039_related_name_changes"),
-        ("django_celery_results", "0006_taskresult_date_created"),
+        #("django_celery_results", "0006_taskresult_date_created"),  # TODO(john): this seems to be fine, but are there any implications?
         ("extras", "0070_remove_site_and_region_attributes_from_config_context"),
         ("ipam", "0018_remove_site_foreign_key_from_ipam_models"),
         ("virtualization", "0016_remove_site_foreign_key_from_cluster_class"),

@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
 
-import nautobot.core.celery
+import nautobot.core.dramatiq
 
 
 class Migration(migrations.Migration):
@@ -38,11 +38,11 @@ class Migration(migrations.Migration):
                 ("interval", models.CharField(max_length=255)),
                 (
                     "args",
-                    models.JSONField(blank=True, default=list, encoder=nautobot.core.celery.NautobotKombuJSONEncoder),
+                    models.JSONField(blank=True, default=list, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder),
                 ),
                 (
                     "kwargs",
-                    models.JSONField(blank=True, default=dict, encoder=nautobot.core.celery.NautobotKombuJSONEncoder),
+                    models.JSONField(blank=True, default=dict, encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder),
                 ),
                 ("queue", models.CharField(blank=True, default=None, max_length=200, null=True)),
                 ("one_off", models.BooleanField(default=False)),

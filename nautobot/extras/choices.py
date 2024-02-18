@@ -177,48 +177,37 @@ class JobResultStatusChoices(ChoiceSet):
     is equivalent to a Celery task state.
     """
 
-    STATUS_FAILURE = states.FAILURE
-    STATUS_PENDING = states.PENDING
-    STATUS_RECEIVED = states.RECEIVED
-    STATUS_RETRY = states.RETRY
-    STATUS_REVOKED = states.REVOKED
-    STATUS_STARTED = states.STARTED
-    STATUS_SUCCESS = states.SUCCESS
+    STATUS_FAILED = "failed"
+    STATUS_PENDING = "pending"
+    STATUS_RUNNING = "running"
+    STATUS_COMPLETE = "complete"
 
-    CHOICES = sorted(zip(states.ALL_STATES, states.ALL_STATES))
+    CHOICES = [
+        [STATUS_FAILED, "Failed"],
+        [STATUS_PENDING, "Pending"],
+        [STATUS_RUNNING, "Running"],
+        [STATUS_COMPLETE, "Complete"],
+    ]
 
-    #: Set of all possible states.
-    ALL_STATES = states.ALL_STATES
-    #: Set of states meaning the task returned an exception.
-    EXCEPTION_STATES = states.EXCEPTION_STATES
-    #: State precedence.
-    #: None represents the precedence of an unknown state.
-    #: Lower index means higher precedence.
-    PRECEDENCE = states.PRECEDENCE
-    #: Set of exception states that should propagate exceptions to the user.
-    PROPAGATE_STATES = states.PROPAGATE_STATES
-    #: Set of states meaning the task result is ready (has been executed).
-    READY_STATES = states.READY_STATES
-    #: Set of states meaning the task result is not ready (hasn't been executed).
-    UNREADY_STATES = states.UNREADY_STATES
+    TERMINAL_STATUSES = [
+        STATUS_FAILED,
+        STATUS_COMPLETE,
+    ]
 
-    @staticmethod
-    def precedence(state):
-        """
-        Get the precedence for a state. Lower index means higher precedence.
+    TRANSIENT_STATUSES = [
+        STATUS_PENDING,
+        STATUS_RUNNING,
+    ]
 
-        Args:
-            state (str): One of the status choices.
-
-        Returns:
-            (int): Precedence value.
-
-        Examples:
-            >>> JobResultStatusChoices.precedence(JobResultStatusChoices.STATUS_SUCCESS)
-            0
-
-        """
-        return states.precedence(state)
+    LEGACY_CELERY_MAP = {
+        "FAILURE": STATUS_FAILED,
+        "PENDING": STATUS_PENDING,
+        "RECEIVED": STATUS_PENDING,
+        "RETRY": STATUS_PENDING,
+        "REVOKED": STATUS_FAILED,
+        "STARTED": STATUS_RUNNING,
+        "SUCCESS": STATUS_COMPLETE,
+    }
 
 
 #

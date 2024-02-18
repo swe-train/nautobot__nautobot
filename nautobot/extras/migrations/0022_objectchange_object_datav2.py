@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-import nautobot.core.celery
+import nautobot.core.dramatiq
 
 
 class Migration(migrations.Migration):
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 editable=False,
                 # The default DjangoJSONEncoder doesn't handle conversion of `set` objects to JSON
-                encoder=nautobot.core.celery.NautobotKombuJSONEncoder,
+                encoder=nautobot.core.dramatiq.json.NautobotJSONEncoder,
                 null=True,
             ),
         ),

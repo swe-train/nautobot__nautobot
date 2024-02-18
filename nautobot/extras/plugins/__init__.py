@@ -140,7 +140,8 @@ class NautobotAppConfig(NautobotConfig):
             register_graphql_types(graphql_types)
 
         # Import jobs (if present)
-        jobs = import_object(f"{self.__module__}.{self.jobs}")
+        from nautobot.core.dramatiq.discovery import get_jobs_classes  # circular import
+        jobs = get_jobs_classes().get(self.name)
         if jobs is not None:
             register_jobs(jobs)
             self.features["jobs"] = jobs
@@ -418,14 +419,7 @@ def register_jobs(class_list):
     """
     Register a list of Job classes
     """
-    from nautobot.extras.jobs import Job
-
     for job in class_list:
-        if not inspect.isclass(job):
-            raise TypeError(f"Job class {job} was passed as an instance!")
-        if not issubclass(job, Job):
-            raise TypeError(f"{job} is not a subclass of extras.jobs.Job!")
-
         registry["plugin_jobs"].append(job)
 
     # Note that we do not (and cannot) update the Job records in the Nautobot database at this time.

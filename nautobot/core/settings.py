@@ -407,7 +407,7 @@ INSTALLED_APPS = [
     "taggit",
     "timezone_field",
     "nautobot.core.apps.NautobotConstanceConfig",  # overridden form of "constance" AppConfig
-    "nautobot.core",
+    "nautobot.core.apps.CoreConfig",
     "django.contrib.admin",  # Must be after `nautobot.core` for template overrides
     "django_celery_beat",  # Must be after `nautobot.core` for template overrides
     "rest_framework",  # Must be after `nautobot.core` for template overrides

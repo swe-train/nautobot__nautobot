@@ -88,7 +88,6 @@ class NautobotAppConfig(NautobotConfig):
     graphql_types = "graphql.types.graphql_types"
     homepage_layout = "homepage.layout"
     jinja_filters = "jinja_filters"
-    jobs = "jobs"
     metrics = "metrics.metrics"
     menu_items = "navigation.menu_items"
     secrets_providers = "secrets.secrets_providers"

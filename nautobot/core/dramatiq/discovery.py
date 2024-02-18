@@ -1,13 +1,13 @@
 import importlib
 from django.apps import apps
-from nautobot.apps import NautobotAppConfig
+from nautobot.core.apps import NautobotConfig
 
 
 def import_jobs_from_apps():
     jobs_module_map = {}
     for app_config in apps.get_app_configs():
         # Check if the app uses the specific subclass of AppConfig
-        if isinstance(app_config, NautobotAppConfig):
+        if isinstance(app_config, NautobotConfig):
             jobs_module_name = app_config.jobs
             try:
                 # Dynamically import the "jobs" module from the app
@@ -27,6 +27,7 @@ def get_jobs_classes():
 
     for app_config_name, module in jobs_module_map.items():
         for entity in dir(module):
+            entity = getattr(module, entity)
             if isinstance(entity, type) and issubclass(entity, Job) and entity is not Job:
                 # We have a subclass of Job
                 jobs_map[app_config_name] = entity

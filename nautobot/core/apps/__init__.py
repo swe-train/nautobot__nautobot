@@ -41,6 +41,7 @@ class NautobotConfig(AppConfig):
     # New UI Navigation
     navigation = "navigation.navigation"
     searchable_models = []  # models included in global search; list of ["modelname", "modelname", "modelname"...]
+    jobs = "jobs"
 
     def ready(self):
         """

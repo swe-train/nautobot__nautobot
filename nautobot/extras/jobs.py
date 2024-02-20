@@ -1,6 +1,5 @@
 """Jobs functionality - consolidates and replaces legacy "custom scripts" and "reports" features."""
 from collections import OrderedDict
-import functools
 import inspect
 import json
 import logging
@@ -22,10 +21,10 @@ from django.db.models import Model
 from django.db.models.query import QuerySet
 from django.forms import ValidationError
 from django.utils.functional import classproperty
-from dramatiq.generic import GenericActor
 import netaddr
 import yaml
 
+from nautobot.core.dramatiq.actors import GenericActor
 from nautobot.core.forms import (
     DynamicModelChoiceField,
     DynamicModelMultipleChoiceField,
@@ -33,8 +32,8 @@ from nautobot.core.forms import (
 )
 from nautobot.core.utils.config import get_settings_or_config
 from nautobot.core.utils.lookup import get_model_from_name
-from nautobot.extras.choices import JobResultStatusChoices, ObjectChangeActionChoices, ObjectChangeEventContextChoices
-from nautobot.extras.context_managers import web_request_context
+from nautobot.extras.choices import ObjectChangeActionChoices, ObjectChangeEventContextChoices
+from nautobot.extras.context_managers import job_control_context, web_request_context
 from nautobot.extras.forms import JobForm
 from nautobot.extras.models import (
     FileProxy,
@@ -74,9 +73,8 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-class RunJobTaskFailed(Exception):
-    """Celery task failed for some reason."""
-
+class RunJobSetupFailed(Exception):
+    """Exception raised when an error occurs the setup of a Job execution."""
 
 class BaseJob(GenericActor):
     class Meta:
@@ -87,38 +85,44 @@ class BaseJob(GenericActor):
         # If we fail to find any objects, we consider this a job execution error, and fail.
         # This might happen when a job sits on the queue for a while (i.e. scheduled) and data has changed
         # or it might be bad input from an API request, or manual execution.
+        job_control = kwargs.pop("_job_control", {})  # This dict contains metadata used to effect the execution of the job
+
         try:
             deserialized_kwargs = self.deserialize_data(kwargs)
+            user = User.objects.get(pk=job_control["user_id"])
+            job_model = JobModel.objects.get(pk=job_control["job_model_id"])
+            job_result = JobResult.objects.get(pk=job_control["job_result_id"])
         except Exception as err:
             self.logger.error("%s", err)
-            raise RunJobTaskFailed("Error initializing job") from err
+            raise RunJobSetupFailed("Error during setup for job execution") from err
         if isinstance(self, JobHookReceiver):
             change_context = ObjectChangeEventContextChoices.CONTEXT_JOB_HOOK
         else:
             change_context = ObjectChangeEventContextChoices.CONTEXT_JOB
 
-        with web_request_context(user=self.user, context_detail=self.class_path, context=change_context):
-            if self.celery_kwargs.get("nautobot_job_profile", False) is True:
-                import cProfile
+        with job_control_context(self, user=user, job_model=job_model, job_result=job_result):  # Temporarily make these attributes available on `self`
+            with web_request_context(user=self.user, context_detail=self.class_path, context=change_context):
+                if job_control["job_profile"]:
+                    import cProfile
 
-                # TODO: This should probably be available as a file download rather than dumped to the hard drive.
-                # Pending this: https://github.com/nautobot/nautobot/issues/3352
-                profiling_path = f"{tempfile.gettempdir()}/nautobot-jobresult-{self.job_result.id}.pstats"
-                self.logger.info(
-                    "Writing profiling information to %s.", profiling_path, extra={"grouping": "initialization"}
-                )
+                    # TODO: This should probably be available as a file download rather than dumped to the hard drive.
+                    # Pending this: https://github.com/nautobot/nautobot/issues/3352
+                    profiling_path = f"{tempfile.gettempdir()}/nautobot-jobresult-{self.job_result.id}.pstats"
+                    self.logger.info(
+                        "Writing profiling information to %s.", profiling_path, extra={"grouping": "initialization"}
+                    )
 
-                with cProfile.Profile() as pr:
-                    try:
-                        output = self.run(*args, **deserialized_kwargs)
-                    except Exception as err:
-                        pr.dump_stats(profiling_path)
-                        raise err
-                    else:
-                        pr.dump_stats(profiling_path)
-                        return output
-            else:
-                return self.run(*args, **deserialized_kwargs)
+                    with cProfile.Profile() as pr:
+                        try:
+                            output = self.run(*args, **deserialized_kwargs)
+                        except Exception as err:
+                            pr.dump_stats(profiling_path)
+                            raise err
+                        else:
+                            pr.dump_stats(profiling_path)
+                            return output
+                else:
+                    return self.run(*args, **deserialized_kwargs)
 
     @final
     @classproperty
@@ -338,31 +342,6 @@ class BaseJob(GenericActor):
 
         return form
 
-    def clear_cache(self):
-        """
-        Clear all cached properties on this instance without accessing them.
-        """
-        try:
-            del self.job_result
-        except AttributeError:
-            pass
-        try:
-            del self.job_model
-        except AttributeError:
-            pass
-            
-    @functools.cached_property
-    def job_model(self):
-        return JobModel.objects.get(module_name=self.__module__, job_class_name=self.__name__)
-
-    @functools.cached_property
-    def job_result(self):
-        return JobResult.objects.get(id=self.request.id)
-
-    @property
-    def user(self):
-        return getattr(self.job_result, "user", None)
-
     @staticmethod
     def serialize_data(data):
         """
@@ -394,7 +373,7 @@ class BaseJob(GenericActor):
 
         return return_data
 
-    # TODO: can the deserialize_data logic be moved to NautobotKombuJSONEncoder?
+    # TODO: can the deserialize_data logic be moved to the json encoder? Probably not because like serialize_data, context of the vars is needed
     @classmethod
     def deserialize_data(cls, data):
         """
@@ -852,6 +831,9 @@ class JobHookReceiver(Job):
 
     object_change = ObjectVar(model=ObjectChange)
 
+    class Meta:
+        abstract = True
+
     def run(self, object_change):
         """JobHookReceiver subclasses generally shouldn't need to override this method."""
         self.receive_job_hook(
@@ -880,6 +862,9 @@ class JobButtonReceiver(Job):
 
     object_pk = StringVar()
     object_model_name = StringVar()
+
+    class Meta:
+        abstract = True
 
     def run(self, object_pk, object_model_name):
         """JobButtonReceiver subclasses generally shouldn't need to override this method."""

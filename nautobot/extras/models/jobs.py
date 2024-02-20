@@ -1,6 +1,5 @@
 # Data models relating to Jobs
 
-import contextlib
 from datetime import timedelta
 import logging
 
@@ -13,7 +12,9 @@ from django.db import models, transaction
 from django.db.models import signals
 from django.utils import timezone
 from django.utils.functional import cached_property
+from django.utils.module_loading import import_string
 from django_celery_beat.clockedschedule import clocked
+from dramatiq import get_broker
 from prometheus_client import Histogram
 
 from nautobot.core.dramatiq.json import NautobotJSONEncoder
@@ -233,7 +234,7 @@ class Job(PrimaryModel):
         if not self.installed:
             return None
         try:
-            return self.job_task.__class__
+            return self.actor.fn.__class__  # Actor is the wrapper, fn is the callable, which is the job in this case
         except Exception as exc:
             logger.error(str(exc))
             return None
@@ -273,6 +274,11 @@ class Job(PrimaryModel):
     @property
     def job_task(self):
         """Get the registered Celery task, refreshing it if necessary."""
+        return self.actor
+    
+    @property
+    def actor(self):
+        """Get the registered actor for this instance, refreshing it if necessary."""
         if self.git_repository is not None:
             # If this Job comes from a Git repository, make sure we have the correct version of said code.
             #refresh_git_repository(
@@ -280,7 +286,7 @@ class Job(PrimaryModel):
             #)
             # TODO(john): refactor git repo refresh for dramatiq
             pass
-        return self
+        return get_broker().get_actor(self.job_class_name)
 
     def clean(self):
         """For any non-overridden fields, make sure they get reset to the actual underlying class value if known."""
@@ -451,12 +457,6 @@ class JobResult(BaseModel, CustomFieldModel):
         to="extras.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="job_results"
     )
     name = models.CharField(max_length=255, db_index=True)
-    task_name = models.CharField(  # noqa: DJ001  # django-nullable-model-string-field
-        max_length=255,
-        null=True,  # TODO: should this be blank=True instead?
-        db_index=True,
-        help_text="Registered name of the Celery task for this job. Internal use only.",
-    )
     date_created = models.DateTimeField(auto_now_add=True, db_index=True)
     date_done = models.DateTimeField(null=True, blank=True, db_index=True)
     user = models.ForeignKey(
@@ -477,14 +477,9 @@ class JobResult(BaseModel, CustomFieldModel):
         verbose_name="Result Data",
         help_text="The data returned by the task",
     )
-    worker = models.CharField(  # noqa: DJ001  # django-nullable-model-string-field
-        max_length=100,
-        default=None,
-        null=True,  # TODO: should this be default="", blank=True instead?
-    )
-    task_args = models.JSONField(blank=True, default=list, encoder=NautobotJSONEncoder)
-    task_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
-    celery_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
+    execution_args = models.JSONField(blank=True, default=list, encoder=NautobotJSONEncoder)
+    execution_kwargs = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)
+    execution_options = models.JSONField(blank=True, default=dict, encoder=NautobotJSONEncoder)  # TODO(john): figure out what to do with this
     traceback = models.TextField(blank=True, null=True)  # noqa: DJ001  # django-nullable-model-string-field -- TODO: can we remove null=True?
     meta = models.JSONField(null=True, default=None, editable=False)
     scheduled_job = models.ForeignKey(to="extras.ScheduledJob", on_delete=models.SET_NULL, null=True, blank=True)
@@ -524,21 +519,6 @@ class JobResult(BaseModel, CustomFieldModel):
     def __str__(self):
         return f"{self.name} started at {self.date_created} ({self.status})"
 
-    def as_dict(self):
-        """This is required by the django-celery-results DB backend."""
-        return {
-            "id": self.id,
-            "task_name": self.task_name,
-            "task_args": self.task_args,
-            "task_kwargs": self.task_kwargs,
-            "status": self.status,
-            "result": self.result,
-            "date_done": self.date_done,
-            "traceback": self.traceback,
-            "meta": self.meta,
-            "worker": self.worker,
-        }
-
     @property
     def duration(self):
         if not self.date_done:
@@ -553,16 +533,16 @@ class JobResult(BaseModel, CustomFieldModel):
     # will be in the JOB_RESULT_METRIC and how to compensate for it.
     def set_status(self, status):
         """
-        Helper method to change the status of the job result. If the target status is terminal, the  completion
+        Helper method to change the status of the job result. If the target status is terminal, the completion
         time is also set.
         """
         self.status = status
-        if status in JobResultStatusChoices.READY_STATES:
+        if status in JobResultStatusChoices.TERMINAL_STATUSES:
             self.date_done = timezone.now()
             # Only add metrics if we have a related job model. If we are moving to a terminal state we should always
             # have a related job model, so this shouldn't be too tight of a restriction.
             if self.job_model:
-                duration = self.date_done - self.created
+                duration = self.date_done - self.date_created
                 JOB_RESULT_METRIC.labels(self.job_model.grouping, self.job_model.name, status).observe(
                     duration.total_seconds()
                 )
@@ -596,7 +576,7 @@ class JobResult(BaseModel, CustomFieldModel):
         job_model,
         user,
         *job_args,
-        celery_kwargs=None,
+        options=None,
         profile=False,
         schedule=None,
         task_queue=None,
@@ -630,31 +610,37 @@ class JobResult(BaseModel, CustomFieldModel):
         )
 
         if task_queue is None:
-            task_queue = settings.CELERY_TASK_DEFAULT_QUEUE
+            task_queue = settings.WORKER_DEFAULT_QUEUE
 
-        job_celery_kwargs = {
-            "nautobot_job_job_model_id": job_model.id,
-            "nautobot_job_profile": profile,
-            "nautobot_job_user_id": user.id,
-            "queue": task_queue,
+        actor_options = {
+            "queue_name": task_queue,
+            "nautobot_job_result_id": job_result.id,
+        }
+        job_control = {
+            "job_model_id": job_model.id,
+            "job_profile": profile,
+            "user_id": user.id,
+            "job_result_id": job_result.id,
         }
 
         if schedule is not None:
-            job_celery_kwargs["nautobot_job_schedule_id"] = schedule.id
+            job_control["job_schedule"] = schedule
         if job_model.soft_time_limit > 0:
-            job_celery_kwargs["soft_time_limit"] = job_model.soft_time_limit
+            actor_options["soft_time_limit"] = job_model.soft_time_limit
         if job_model.time_limit > 0:
-            job_celery_kwargs["time_limit"] = job_model.time_limit
+            actor_options["time_limit"] = job_model.time_limit
 
-        if celery_kwargs is not None:
-            job_celery_kwargs.update(celery_kwargs)
+        if options is not None:
+            actor_options.update(options)
+
+        job_kwargs["_job_control"] = job_control  # This gets popped off BaseJob.perform()
 
         if synchronous:
             # TODO(john): refactor this for dramatiq
 
             # synchronous tasks are run before the JobResult is saved, so any fields required by
             # the job must be added before calling `apply()`
-            job_result.celery_kwargs = job_celery_kwargs
+            job_result.execution_options = actor_options
             job_result.save()
 
             # setup synchronous task logging
@@ -686,8 +672,8 @@ class JobResult(BaseModel, CustomFieldModel):
         else:
             # Jobs queued inside of a transaction need to run after the transaction completes and the JobResult is saved to the database
             transaction.on_commit(
-                lambda: job_model.job_task.apply_async(
-                    args=job_args, kwargs=job_kwargs, task_id=str(job_result.id), **job_celery_kwargs
+                lambda: job_model.actor.send_with_options(
+                    args=job_args, kwargs=job_kwargs, **actor_options
                 )
             )
 

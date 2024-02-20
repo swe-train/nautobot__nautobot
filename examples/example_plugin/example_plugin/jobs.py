@@ -9,11 +9,9 @@ from nautobot.apps.jobs import (
     FileVar,
     IntegerVar,
     Job,
-    _Job,
     JobButtonReceiver,
     JobHookReceiver,
     JSONVar,
-    register_jobs,
 )
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.choices import ObjectChangeActionChoices
@@ -82,7 +80,7 @@ class ExampleLoggingJob(Job):
         name = "Example logging job."
         description = "I log stuff to demonstrate how UI logging works."
         task_queues = [
-            settings.CELERY_TASK_DEFAULT_QUEUE,
+            settings.WORKER_DEFAULT_QUEUE,
             "priority",
             "bulk",
         ]
@@ -187,6 +185,6 @@ class ExampleComplexJobButtonReceiver(JobButtonReceiver):
             self.logger.error("Unable to run Job Button for type %s.", type(obj).__name__, extra={"object": obj})
 
 
-class MyTestJob(_Job):
+class MyTestJob(Job):
     def run(self):
         return "Hello world!"

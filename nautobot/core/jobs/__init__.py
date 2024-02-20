@@ -8,7 +8,7 @@ from nautobot.core.api.utils import get_serializer_for_model
 from nautobot.core.utils.lookup import get_filterset_for_model
 from nautobot.core.utils.requests import get_filterable_params_from_filter_params
 from nautobot.extras.datasources import ensure_git_repository, git_repository_dry_run, refresh_datasource_content
-from nautobot.extras.jobs import ChoiceVar, Job, ObjectVar, RunJobTaskFailed, StringVar
+from nautobot.extras.jobs import ChoiceVar, Job, ObjectVar, StringVar
 from nautobot.extras.models import ExportTemplate, GitRepository
 
 name = "System Jobs"
@@ -39,7 +39,7 @@ class GitRepositorySync(Job):
             ensure_git_repository(repository, logger=self.logger)
             refresh_datasource_content("extras.gitrepository", repository, user, job_result, delete=False)
             # Given that the above succeeded, tell all workers (including ourself) to call ensure_git_repository()
-            app.control.broadcast("refresh_git_repository", repository_pk=repository.pk, head=repository.current_head)
+            app.control.broadcast("refresh_git_repository", repository_pk=repository.pk, head=repository.current_head)  # TODO(john): refactor this
         finally:
             self.logger.info(f"Repository synchronization completed in {job_result.duration}")
 

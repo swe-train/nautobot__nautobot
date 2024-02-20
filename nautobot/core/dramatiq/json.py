@@ -1,5 +1,9 @@
 import logging
+import json
 
+from django.utils.functional import SimpleLazyObject
+from django.utils.module_loading import import_string
+from dramatiq.errors import DecodeError
 from rest_framework.utils.encoders import JSONEncoder
 
 logger = logging.getLogger(__name__)
@@ -54,3 +58,27 @@ class NautobotJSONEncoder(JSONEncoder):
             return f"{obj.__class__.__name__}: {obj}"
         else:
             return super().default(obj)
+        
+    def decode(self, data):
+
+        def hook(data):
+            if "__nautobot_type__" in data:
+                qual_name = data.pop("__nautobot_type__")
+                logger.debug("Performing nautobot deserialization for type %s", qual_name)
+                cls = import_string(qual_name)  # fully qualified dotted import path
+                if cls:
+                    return SimpleLazyObject(lambda: cls.objects.get(id=data["id"]))
+                else:
+                    raise TypeError(f"Unable to import {qual_name} during nautobot deserialization")
+            else:
+                return data
+            
+        try:
+            data_str = data.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise DecodeError("failed to decode data %r" % (data,), data, e) from None
+        
+        try:
+            return json.loads(data_str, object_hook=hook)
+        except json.decoder.JSONDecodeError as e:
+            raise DecodeError("failed to decode message %r" % (data_str,), data_str, e) from None

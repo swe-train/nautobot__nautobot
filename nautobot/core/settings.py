@@ -897,7 +897,7 @@ SILKY_INTERCEPT_FUNC = silk_request_logging_intercept_logic
 
 # Dramtiq
 
-DEFAULT_ENCODER = "dramatiq.encoder.JSONEncoder"
+DRAMATIQ_ENCODER = "nautobot.core.dramatiq.json.NautobotJSONEncoder"
 
 DRAMATIQ_BROKER = {
     "BROKER": "dramatiq.brokers.redis.RedisBroker",
@@ -909,8 +909,9 @@ DRAMATIQ_BROKER = {
         "dramatiq.middleware.AgeLimit",
         "dramatiq.middleware.TimeLimit",
         "dramatiq.middleware.Callbacks",
-        "dramatiq.middleware.Retries",
+        #"dramatiq.middleware.Retries",  # TODO(john): figure this one out
         "nautobot.core.dramatiq.middleware.NautobotJobsMiddleware",
+        "nautobot.core.dramatiq.middleware.JobResultStateMiddleware"
     ]
 }
 

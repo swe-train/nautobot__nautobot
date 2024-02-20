@@ -180,18 +180,18 @@ class JobResultStatusChoices(ChoiceSet):
     STATUS_FAILED = "failed"
     STATUS_PENDING = "pending"
     STATUS_RUNNING = "running"
-    STATUS_COMPLETE = "complete"
+    STATUS_COMPLETED = "completed"
 
     CHOICES = [
         [STATUS_FAILED, "Failed"],
         [STATUS_PENDING, "Pending"],
         [STATUS_RUNNING, "Running"],
-        [STATUS_COMPLETE, "Complete"],
+        [STATUS_COMPLETED, "Completed"],
     ]
 
     TERMINAL_STATUSES = [
         STATUS_FAILED,
-        STATUS_COMPLETE,
+        STATUS_COMPLETED,
     ]
 
     TRANSIENT_STATUSES = [
@@ -206,7 +206,7 @@ class JobResultStatusChoices(ChoiceSet):
         "RETRY": STATUS_PENDING,
         "REVOKED": STATUS_FAILED,
         "STARTED": STATUS_RUNNING,
-        "SUCCESS": STATUS_COMPLETE,
+        "SUCCESS": STATUS_COMPLETED,
     }
 
 

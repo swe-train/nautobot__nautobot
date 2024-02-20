@@ -152,3 +152,37 @@ def web_request_context(
         for object_change in ObjectChange.objects.filter(request_id=change_context.change_id).iterator():
             enqueue_job_hooks(object_change)
             enqueue_webhooks(object_change)
+
+
+class job_control_context:
+    """
+    Dynamically modify available attributes on a target object for the durration of the context manager's
+    scope, then retore the object to its origional state. This is used during the execution of Jobs
+    actors which are singletons, but that need access to execution specific attributes like the user.
+
+    Note that this context manager is implemented without the modern @contextmanager decorator because
+    it is more readable and easier to understand than the generator based pattern that would result in the
+    alternative implementation.
+    """
+    def __init__(self, target, **attributes):
+        self.target = target
+        self.attributes = attributes
+        self.original_attrs = {}
+
+    def __enter__(self):
+        # Save original attributes and set new ones
+        for attr, value in self.attributes.items():
+            # Save the original attribute if it exists
+            if hasattr(self.target, attr):
+                self.original_attrs[attr] = getattr(self.target, attr)
+            setattr(self.target, attr, value)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore original attributes
+        for attr, value in self.original_attrs.items():
+            setattr(self.target, attr, value)
+        
+        # Remove attributes that were added by the context manager
+        for attr in self.attributes:
+            if attr not in self.original_attrs:
+                delattr(self.target, attr)

@@ -276,55 +276,19 @@ def generate_signature(request_body, secret):
     return hmac_prep.hexdigest()
 
 
-def get_celery_queues():
-    """
-    Return a dictionary of celery queues and the number of workers active on the queue in
-    the form {queue_name: num_workers}
-    """
-    from nautobot.core.celery import app  # prevent circular import
-
-    celery_queues = {}
-
-    celery_inspect = app.control.inspect()
-    active_queues = celery_inspect.active_queues()
-    if active_queues is None:
-        return celery_queues
-    for task_queue_list in active_queues.values():
-        distinct_queues = {q["name"] for q in task_queue_list}
-        for queue in distinct_queues:
-            celery_queues.setdefault(queue, 0)
-            celery_queues[queue] += 1
-
-    return celery_queues
-
-
 def get_worker_count(request=None, queue=None):
     """
     Return a count of the active Celery workers in a specified queue. Defaults to the `CELERY_TASK_DEFAULT_QUEUE` setting.
     """
-    celery_queues = get_celery_queues()
-    if not queue:
-        queue = settings.CELERY_TASK_DEFAULT_QUEUE
-    return celery_queues.get(queue, 0)
+    return 1  # TODO(john): refactor
 
 
-def task_queues_as_choices(task_queues):
+def task_queues_as_choices(task_queues):  # TODO(john): refactor this
     """
     Returns a list of 2-tuples for use in the form field `choices` argument. Appends
     worker count to the description.
     """
-    if not task_queues:
-        task_queues = [settings.CELERY_TASK_DEFAULT_QUEUE]
-
-    choices = []
-    celery_queues = get_celery_queues()
-    for queue in task_queues:
-        if not queue:
-            worker_count = celery_queues.get(settings.CELERY_TASK_DEFAULT_QUEUE, 0)
-        else:
-            worker_count = celery_queues.get(queue, 0)
-        description = f"{queue if queue else 'default queue'} ({worker_count} worker{'s'[:worker_count^1]})"
-        choices.append((queue, description))
+    choices = [(settings.WORKER_DEFAULT_QUEUE, settings.WORKER_DEFAULT_QUEUE)]
     return choices
 
 
@@ -404,52 +368,52 @@ def refresh_job_model_from_job_class(job_model_class, job_class):
             job_name,
         )
 
-    try:
-        with transaction.atomic():
-            job_model, created = job_model_class.objects.get_or_create(
-                module_name=job_class.__module__[:JOB_MAX_NAME_LENGTH],
-                job_class_name=job_class.__name__[:JOB_MAX_NAME_LENGTH],
-                defaults={
-                    "grouping": job_class.grouping[:JOB_MAX_GROUPING_LENGTH],
-                    "name": job_name,
-                    "is_job_hook_receiver": issubclass(job_class, JobHookReceiver),
-                    "is_job_button_receiver": issubclass(job_class, JobButtonReceiver),
-                    "read_only": job_class.read_only,
-                    "supports_dryrun": job_class.supports_dryrun,
-                    "installed": True,
-                    "enabled": False,
-                },
-            )
-
-            if job_name != default_job_name:
-                job_model.name_override = True
-
-            if created and job_model.module_name.startswith("nautobot."):
-                # System jobs should be enabled by default when first created
-                job_model.enabled = True
-
-            for field_name in JOB_OVERRIDABLE_FIELDS:
-                # Was this field directly inherited from the job before, or was it overridden in the database?
-                if not getattr(job_model, f"{field_name}_override", False):
-                    # It was inherited and not overridden
-                    setattr(job_model, field_name, getattr(job_class, field_name))
-
-            if not created:
-                # Mark it as installed regardless
-                job_model.installed = True
-                # Update the non-overridable flags in case they've changed in the source
-                job_model.is_job_hook_receiver = issubclass(job_class, JobHookReceiver)
-                job_model.is_job_button_receiver = issubclass(job_class, JobButtonReceiver)
-                job_model.read_only = job_class.read_only
-                job_model.supports_dryrun = job_class.supports_dryrun
-
-            job_model.save()
-
-    except Exception as exc:
-        logger.error(
-            'Exception while trying to create/update a database record for Job class "%s": %s', job_class.__name__, exc
+    #try:
+    with transaction.atomic():
+        job_model, created = job_model_class.objects.get_or_create(
+            module_name=job_class.__module__[:JOB_MAX_NAME_LENGTH],
+            job_class_name=job_class.__name__[:JOB_MAX_NAME_LENGTH],
+            defaults={
+                "grouping": job_class.grouping[:JOB_MAX_GROUPING_LENGTH],
+                "name": job_name,
+                "is_job_hook_receiver": issubclass(job_class, JobHookReceiver),
+                "is_job_button_receiver": issubclass(job_class, JobButtonReceiver),
+                "read_only": job_class.read_only,
+                "supports_dryrun": job_class.supports_dryrun,
+                "installed": True,
+                "enabled": False,
+            },
         )
-        return (None, False)
+
+        if job_name != default_job_name:
+            job_model.name_override = True
+
+        if created and job_model.module_name.startswith("nautobot."):
+            # System jobs should be enabled by default when first created
+            job_model.enabled = True
+
+        for field_name in JOB_OVERRIDABLE_FIELDS:
+            # Was this field directly inherited from the job before, or was it overridden in the database?
+            if not getattr(job_model, f"{field_name}_override", False):
+                # It was inherited and not overridden
+                setattr(job_model, field_name, getattr(job_class, field_name))
+
+        if not created:
+            # Mark it as installed regardless
+            job_model.installed = True
+            # Update the non-overridable flags in case they've changed in the source
+            job_model.is_job_hook_receiver = issubclass(job_class, JobHookReceiver)
+            job_model.is_job_button_receiver = issubclass(job_class, JobButtonReceiver)
+            job_model.read_only = job_class.read_only
+            job_model.supports_dryrun = job_class.supports_dryrun
+
+        job_model.save()
+
+    #except Exception as exc:
+    #    logger.error(
+    #        'Exception while trying to create/update a database record for Job class "%s": %s', job_class.__name__, exc
+    #    )
+    #    return (None, False)
 
     logger.info(
         '%s Job "%s: %s" from <%s>',

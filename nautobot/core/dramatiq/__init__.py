@@ -29,6 +29,8 @@ def load_middleware(path_or_obj, **kwargs):
 
 def setup():
 
+    dramatiq.set_encoder(select_encoder())
+
     result_backend_settings = getattr(settings, "DRAMATIQ_RESULT_BACKEND", {})
     if result_backend_settings:
         result_backend_path = result_backend_settings.get("BACKEND", "dramatiq.results.backends.StubBackend")

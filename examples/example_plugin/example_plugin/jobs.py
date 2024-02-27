@@ -12,6 +12,7 @@ from nautobot.apps.jobs import (
     JobButtonReceiver,
     JobHookReceiver,
     JSONVar,
+    ObjectVar,
 )
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.choices import ObjectChangeActionChoices
@@ -187,4 +188,8 @@ class ExampleComplexJobButtonReceiver(JobButtonReceiver):
 
 class MyTestJob(Job):
     def run(self):
-        return "Hello world!"
+        import os
+        for file in os.listdir("/tmp"):
+            if file.startswith("nautobot-jobresult"):
+                with open(f"/tmp/{file}", "rb") as f:
+                    self.create_file(file, bytes(f.read()))
